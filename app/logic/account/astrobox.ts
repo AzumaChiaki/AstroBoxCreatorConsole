@@ -26,6 +26,10 @@ export function persistAstroboxAccount(profile: any, token: string) {
         plan: profile?.vip || profile?.tag || "",
         email: profile?.email ?? "",
         token,
+        roles: Array.isArray(profile?.roles)
+            ? profile.roles.filter((role: unknown): role is string => typeof role === "string")
+            : [],
+        activeSocialBan: profile?.activeSocialBan ?? null,
     };
 
     setAstroboxAccount(account);

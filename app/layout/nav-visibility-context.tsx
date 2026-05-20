@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
+export const NAV_DESKTOP_MIN_WIDTH = 1280;
+const DESKTOP_MEDIA_QUERY = `(min-width: ${NAV_DESKTOP_MIN_WIDTH}px)`;
 
 function detectIsDesktop() {
   if (typeof window === "undefined") {

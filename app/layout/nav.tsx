@@ -152,7 +152,7 @@ function NavContent({
         </div>
       </div>
 
-      <div className="absolute max-w-[299px] max-[1024px]:max-w-[calc(100vw-20px)] box-border w-full bottom-0 bg-linear-to-b from-0% from-nav/0 to-20% to-nav pt-4">
+      <div className="absolute max-w-[299px] max-[1280px]:max-w-[calc(100vw-20px)] box-border w-full bottom-0 bg-linear-to-b from-0% from-nav/0 to-20% to-nav pt-4">
         <div className="flex flex-col gap-2.5 p-2 pt-0 -mx-2 backdrop-blur-md">
           <NavItem
             key="publish"
@@ -686,6 +686,13 @@ function NavSection({
   onNavigate,
 }: NavSectionProps) {
   const hasAnalysisAccess = canAccessAnalysisByPlan(accountState.astrobox?.plan);
+  const roles = accountState.astrobox?.roles ?? [];
+  const visibleItems = items.filter((item) => {
+    if (!item.requireRoles?.length) return true;
+    return item.requireRoles.some((role) => roles.includes(role));
+  });
+
+  if (visibleItems.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-1.5">
@@ -696,7 +703,7 @@ function NavSection({
           </p>
         </div>
       )}
-      {items.map(({ id, path, ...item }) => {
+      {visibleItems.map(({ id, path, requireRoles: _requireRoles, ...item }) => {
         const disabled = path === "/analysis" && !hasAnalysisAccess;
         return (
         <NavItem

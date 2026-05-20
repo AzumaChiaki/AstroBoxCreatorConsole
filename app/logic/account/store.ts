@@ -8,6 +8,12 @@ export interface AstroboxAccount {
     plan: string;
     email: string;
     token: string;
+    roles: string[];
+    activeSocialBan?: {
+        id: string;
+        reason: string;
+        expiresAt: string | null;
+    } | null;
 }
 
 export interface GithubAccount {
@@ -88,6 +94,10 @@ function normalizeState(state: AccountState | undefined): AccountState {
               plan: state.astrobox.plan?.trim() || "",
               email: state.astrobox.email?.trim() || "",
               token: state.astrobox.token || "",
+              roles: Array.isArray(state.astrobox.roles)
+                  ? state.astrobox.roles.filter((role): role is string => typeof role === "string")
+                  : [],
+              activeSocialBan: state.astrobox.activeSocialBan ?? null,
           }
         : undefined;
 

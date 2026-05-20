@@ -5,6 +5,9 @@ export interface SubmitResourceCryptoInfoBody {
   deviceId: string;
   hash: string;
   key: string;
+  repoOwner: string;
+  repoName: string;
+  commitSha: string;
 }
 
 export function submitResourceCryptoInfo(body: SubmitResourceCryptoInfoBody) {

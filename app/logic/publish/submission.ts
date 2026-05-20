@@ -31,13 +31,17 @@ async function uploadDownloadAsset(params: {
     message: string;
     token: string;
     itemId: string;
+    manifestCommitSha: string;
     onProgress?: (message: string) => void;
     sha?: string;
 }) {
-    const { repo, asset, message, token, itemId, onProgress, sha } = params;
+    const { repo, asset, message, token, itemId, manifestCommitSha, onProgress, sha } = params;
 
     let fileToUpload = asset.file;
     if (asset.encryptOnUpload) {
+        if (!manifestCommitSha) {
+            throw new Error("缺少 manifest commit sha，无法提交加密文件密钥。");
+        }
         onProgress?.(`加密包体 ${asset.platformId}（AES-256-ECB）`);
         const encrypted = await encryptFileWithAes256Ecb(asset.file);
         fileToUpload = encrypted.encryptedFile;
@@ -46,6 +50,9 @@ async function uploadDownloadAsset(params: {
             deviceId: asset.platformId,
             hash: encrypted.encryptedHash,
             key: encrypted.keyBase64,
+            repoOwner: repo.owner,
+            repoName: repo.name,
+            commitSha: manifestCommitSha,
         });
         onProgress?.(`已保存密钥映射 ${asset.platformId}`);
     }
@@ -121,6 +128,18 @@ export async function uploadManifestAndAssets({
         }
     }
 
+    // 先上传 manifest_v2.json：服务端需要凭这个 commit 校验加密资源密钥提交的所有权
+    onProgress?.("上传 manifest_v2.json");
+    const manifestRes = await uploadTextFile(
+        normalizedRepo,
+        PUBLISH_CONFIG.manifestFileName,
+        manifest.manifestJson,
+        "Add manifest_v2.json",
+        token,
+    );
+    const manifestCommitSha = manifestRes?.commit?.sha ?? "";
+    lastCommitSha = manifestCommitSha || lastCommitSha;
+
     const downloadAssets: DownloadAssetDescriptor[] = manifest.downloadAssets;
     for (const asset of downloadAssets) {
         if (asset.skipUpload) continue;
@@ -130,6 +149,7 @@ export async function uploadManifestAndAssets({
             message: `Add package for ${asset.platformId}`,
             token,
             itemId,
+            manifestCommitSha,
             onProgress,
         });
         lastCommitSha = res?.commit?.sha ?? lastCommitSha;
@@ -147,16 +167,6 @@ export async function uploadManifestAndAssets({
         );
         lastCommitSha = res?.commit?.sha ?? lastCommitSha;
     }
-
-    onProgress?.("上传 manifest_v2.json");
-    const manifestRes = await uploadTextFile(
-        normalizedRepo,
-        PUBLISH_CONFIG.manifestFileName,
-        manifest.manifestJson,
-        "Add manifest_v2.json",
-        token,
-    );
-    lastCommitSha = manifestRes?.commit?.sha ?? lastCommitSha;
 
     return { ...normalizedRepo, commitSha: lastCommitSha };
 }
@@ -244,6 +254,25 @@ export async function upsertManifestAndAssets({
         await uploadAsset(manifest.coverAsset, "Update cover");
     }
 
+    // 先更新 manifest_v2.json：服务端凭这个 commit 校验加密资源密钥提交的所有权
+    const manifestSha = await getExistingFileSha({
+        repo: targetRepo,
+        path: PUBLISH_CONFIG.manifestFileName,
+        token,
+    }).catch(() => undefined);
+
+    onProgress?.("更新 manifest_v2.json");
+    const manifestRes = await uploadTextFile(
+        targetRepo,
+        PUBLISH_CONFIG.manifestFileName,
+        manifest.manifestJson,
+        "Update manifest_v2.json",
+        token,
+        { sha: manifestSha },
+    );
+    const manifestCommitSha = manifestRes?.commit?.sha ?? "";
+    lastCommitSha = manifestCommitSha || lastCommitSha;
+
     for (const asset of manifest.downloadAssets) {
         if (!asset || asset.skipUpload) continue;
         const sha = await getExistingFileSha({
@@ -257,6 +286,7 @@ export async function upsertManifestAndAssets({
             message: `Update package for ${asset.platformId}`,
             token,
             itemId,
+            manifestCommitSha,
             onProgress,
             sha,
         });
@@ -281,23 +311,6 @@ export async function upsertManifestAndAssets({
         );
         lastCommitSha = res?.commit?.sha ?? lastCommitSha;
     }
-
-    const manifestSha = await getExistingFileSha({
-        repo: targetRepo,
-        path: PUBLISH_CONFIG.manifestFileName,
-        token,
-    }).catch(() => undefined);
-
-    onProgress?.("更新 manifest_v2.json");
-    const manifestRes = await uploadTextFile(
-        targetRepo,
-        PUBLISH_CONFIG.manifestFileName,
-        manifest.manifestJson,
-        "Update manifest_v2.json",
-        token,
-        { sha: manifestSha },
-    );
-    lastCommitSha = manifestRes?.commit?.sha ?? lastCommitSha;
 
     return { ...targetRepo, commitSha: lastCommitSha };
 }

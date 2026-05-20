@@ -5,11 +5,14 @@ import {
   ChartBarIcon,
   ChartPieSliceIcon,
   CompassRoseIcon,
+  EnvelopeSimpleIcon,
   FingerprintSimpleIcon,
+  FlagIcon,
   GearFineIcon,
   GitPullRequestIcon,
   IdentificationBadgeIcon,
   ListStarIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react";
 import type { NavItemProps } from "~/components/nav/navitem";
 
@@ -17,6 +20,7 @@ export type NavLinkConfig = {
   id: string;
   path: string;
   icon: Icon;
+  requireRoles?: string[];
 } & Omit<NavItemProps, "selected" | "onClick">;
 
 export interface NavSectionConfig {
@@ -101,6 +105,33 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
         icon: CompassRoseIcon,
         label: "探索页管理",
         path: "/explorepage",
+      },
+    ],
+  },
+  {
+    id: "admin",
+    title: "管理后台",
+    items: [
+      {
+        id: "admin-accounts",
+        icon: UsersThreeIcon,
+        label: "账号管理",
+        path: "/admin/accounts",
+        requireRoles: ["admin", "moderator"],
+      },
+      {
+        id: "admin-reports",
+        icon: FlagIcon,
+        label: "举报管理",
+        path: "/admin/reports",
+        requireRoles: ["admin", "moderator"],
+      },
+      {
+        id: "admin-inbox",
+        icon: EnvelopeSimpleIcon,
+        label: "信箱管理",
+        path: "/admin/inbox",
+        requireRoles: ["admin", "moderator"],
       },
     ],
   },

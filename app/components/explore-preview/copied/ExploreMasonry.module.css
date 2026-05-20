@@ -1,0 +1,113 @@
+.compFramework {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 12px !important;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 11 !important;
+    overflow-x: hidden !important;
+}
+
+.masonryBase {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    max-width: 650px;
+    row-gap: 12px;
+    overflow-x: hidden !important;
+}
+
+.primaryCard {
+    flex: 1;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    border-radius: 18px;
+    box-sizing: border-box;
+    background-clip: padding-box;
+    transition:
+        background-color 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+    isolation: isolate;
+    row-gap: 12px;
+}
+
+.primaryTopCard {
+    min-height: 153px;
+}
+
+.cardText {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 18px !important;
+    color: inherit;
+    font-feature-settings: 'liga' off, 'clig' off;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 520;
+    line-height: 26px;
+    letter-spacing: -0.4px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.cardText * {
+    font-family: inherit;
+    color: inherit;
+    font-weight: inherit;
+    font-size: inherit;
+    margin: 0;
+}
+
+.secondaryGrid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-auto-flow: row dense;
+    grid-auto-rows: var(--masonry-row-height, 148px);
+    gap: 12px;
+    align-items: stretch;
+}
+
+.secondaryNormalCard {
+    grid-row: span 1;
+}
+
+.secondaryBigCard {
+    grid-row: span 2;
+}
+
+@media (max-width: 768px) {
+    .compFramework {
+        padding: 0 16px !important;
+    }
+
+    .masonryBase {
+        row-gap: 10px;
+    }
+
+    .primaryCard {
+        border-radius: 14px !important;
+    }
+
+    .primaryTopCard {
+        height: 189px !important;
+        border-radius: 14px !important;
+    }
+
+    .secondaryGrid {
+        grid-template-columns: 1fr !important;
+        grid-auto-rows: 151px !important;
+        gap: 12px !important;
+    }
+}

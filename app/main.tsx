@@ -11,6 +11,11 @@ import ResourceEncrypt from "~/routes/resource/encrypt";
 import ResourceManage from "~/routes/resource/manage";
 import ResourcePublish from "~/routes/resource/publish";
 import Settings from "~/routes/settings";
+import AdminAccountsPage from "~/routes/admin/accounts";
+import AdminInboxPage from "~/routes/admin/inbox";
+import AdminReportsPage from "~/routes/admin/reports";
+import ResourceReviewPage from "~/routes/resreview";
+import ExplorePageManager from "~/routes/explorepage";
 import LoginCallback from "./pages/callback";
 import {
   NewResourcePublishPage,
@@ -31,6 +36,11 @@ const router = createBrowserRouter([
       { path: "encrypt", element: <ResourceEncrypt /> },
       { path: "profile", element: <Profile /> },
       { path: "settings", element: <Settings /> },
+      { path: "resreview", element: <ResourceReviewPage /> },
+      { path: "explorepage", element: <ExplorePageManager /> },
+      { path: "admin/accounts", element: <AdminAccountsPage /> },
+      { path: "admin/reports", element: <AdminReportsPage /> },
+      { path: "admin/inbox", element: <AdminInboxPage /> },
       { path: "publish/new", element: <NewResourcePublishPage /> },
       { path: "publish/edit", element: <ResourceEditPage /> },
       { path: "manage/edit", element: <ResourceEditPage /> },
