@@ -48,6 +48,9 @@ export interface GithubPullFile {
   changes: number;
   patch?: string;
   blob_url?: string;
+  raw_url?: string;
+  contents_url?: string;
+  sha?: string;
 }
 
 function getGithubAuth() {

@@ -7,6 +7,19 @@ export interface ExplorePrResult {
   branch: string;
 }
 
+export interface MediaUpload {
+  file: File;
+  path: string;
+}
+
+export interface ExploreSubmissionInput {
+  jsonText: string;
+  mediaUploads: MediaUpload[];
+  deletes: string[];
+  newFolders: string[];
+  branch?: string;
+}
+
 export function buildExploreBranchName() {
   const account = getGithubAuth();
   return `explore/${Date.now()}-${account.username}`;
@@ -38,13 +51,6 @@ function encodeContentPath(path: string) {
     .join("/");
 }
 
-async function sha256Hex(file: File) {
-  const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 async function getMainRef() {
   return githubFetch<{ object: { sha: string } }>(
     repoApi(`/git/ref/heads/${COMMUNITY_REPO_CONFIG.defaultBranch}`),
@@ -63,9 +69,9 @@ async function createBranch(branch: string, sha: string) {
   });
 }
 
-async function getContent(path: string, branch: string) {
+async function getContent(path: string, ref: string) {
   return githubFetch<{ sha: string; content: string; encoding: string }>(
-    repoApi(`/contents/${encodeContentPath(path)}?ref=${encodeURIComponent(branch)}`),
+    repoApi(`/contents/${encodeContentPath(path)}?ref=${encodeURIComponent(ref)}`),
     { headers: headers() },
   );
 }
@@ -83,6 +89,23 @@ async function putContent(params: {
     body: JSON.stringify({
       message: params.message,
       content: params.contentBase64,
+      branch: params.branch,
+      sha: params.sha,
+    }),
+  });
+}
+
+async function deleteContent(params: {
+  path: string;
+  branch: string;
+  message: string;
+  sha: string;
+}) {
+  return githubFetch<unknown>(repoApi(`/contents/${encodeContentPath(params.path)}`), {
+    method: "DELETE",
+    headers: headers(),
+    body: JSON.stringify({
+      message: params.message,
       branch: params.branch,
       sha: params.sha,
     }),
@@ -112,32 +135,18 @@ export async function fetchExploreJson() {
   return response.text();
 }
 
-export async function prepareExploreMedia(files: File[], branch: string) {
-  const result: Array<{ file: File; path: string; rawUrl: string }> = [];
-  for (const file of files) {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-    const hash = await sha256Hex(file);
-    const path = `explore/media/${hash}.${ext}`;
-    result.push({
-      file,
-      path,
-      rawUrl: `https://raw.githubusercontent.com/${COMMUNITY_REPO_CONFIG.owner}/${COMMUNITY_REPO_CONFIG.name}/${branch}/${path}`,
-    });
-  }
-  return result;
-}
-
-export async function submitExplorePr(params: {
-  jsonText: string;
-  mediaFiles: File[];
-  branch?: string;
-}) {
+export async function submitExplorePr(
+  params: ExploreSubmissionInput,
+): Promise<ExplorePrResult> {
   const account = getGithubAuth();
   const branch = params.branch || `explore/${Date.now()}-${account.username}`;
   const mainRef = await getMainRef();
   await createBranch(branch, mainRef.object.sha);
 
-  const current = await getContent(COMMUNITY_REPO_CONFIG.exploreFilePath, COMMUNITY_REPO_CONFIG.defaultBranch);
+  const current = await getContent(
+    COMMUNITY_REPO_CONFIG.exploreFilePath,
+    COMMUNITY_REPO_CONFIG.defaultBranch,
+  );
   await putContent({
     path: COMMUNITY_REPO_CONFIG.exploreFilePath,
     branch,
@@ -146,16 +155,43 @@ export async function submitExplorePr(params: {
     sha: current.sha,
   });
 
-  const media = await prepareExploreMedia(params.mediaFiles, branch);
-  for (const item of media) {
+  for (const folderPath of params.newFolders) {
+    const keepPath = `${stripTrailingSlash(folderPath)}/.gitkeep`;
     await putContent({
-      path: item.path,
+      path: keepPath,
       branch,
-      message: `Add explore media ${item.path.split("/").pop()}`,
-      contentBase64: ensureBase64(await item.file.arrayBuffer()),
+      message: `Create directory ${folderPath}`,
+      contentBase64: ensureBase64(""),
+    });
+  }
+
+  for (const upload of params.mediaUploads) {
+    const buffer = await upload.file.arrayBuffer();
+    await putContent({
+      path: upload.path,
+      branch,
+      message: `Add ${upload.path.split("/").pop() || upload.path}`,
+      contentBase64: ensureBase64(buffer),
+    });
+  }
+
+  for (const deletePath of params.deletes) {
+    const meta = await getContent(deletePath, COMMUNITY_REPO_CONFIG.defaultBranch).catch(
+      () => null,
+    );
+    if (!meta) continue;
+    await deleteContent({
+      path: deletePath,
+      branch,
+      message: `Delete ${deletePath}`,
+      sha: meta.sha,
     });
   }
 
   const pr = await createPullRequest(branch);
   return { htmlUrl: pr.html_url, branch } satisfies ExplorePrResult;
+}
+
+function stripTrailingSlash(path: string) {
+  return path.replace(/\/+$/, "");
 }

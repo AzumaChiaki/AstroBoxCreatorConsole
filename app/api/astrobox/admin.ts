@@ -1,4 +1,11 @@
 import { sendApiRequest } from "./request";
+import type { CommentView } from "./community";
+
+export interface AdminCommentView extends CommentView {
+  senderIpRaw?: string | null;
+  senderIpLocation?: string | null;
+  children: AdminCommentView[];
+}
 
 export type AdminRole = "admin" | "moderator" | "pr-reviewer" | string;
 export type BanKind = "platform" | "social";
@@ -30,6 +37,8 @@ export interface AdminUserSummary {
   roles: AdminRole[];
   createdAt: string;
   activeBans: ActiveBan[];
+  github?: string | null;
+  additionalProperties?: Record<string, unknown>;
 }
 
 export interface AdminUserDetail extends AdminUserSummary {
@@ -216,6 +225,13 @@ export const AdminApi = {
         "POST",
         undefined,
         body,
+      ),
+  },
+  comments: {
+    detail: (commentId: string) =>
+      sendApiRequest<AdminCommentView>(
+        `/admin/comments/${encodeURIComponent(commentId)}`,
+        "GET",
       ),
   },
   inbox: {

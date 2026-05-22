@@ -1,4 +1,5 @@
-import { Button } from "@radix-ui/themes";
+import { Button, Dialog, IconButton, Spinner, Tooltip } from "@radix-ui/themes";
+import { CopyIcon, GithubLogoIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -16,12 +17,12 @@ import {
   Panel,
   formatDateTime,
   inputClass,
-  textareaClass,
 } from "~/components/admin/AdminPage";
 import { useAccountState } from "~/logic/account/store";
 
 const VIP_TIERS: VipTier[] = ["None", "Pro", "CreatorPlus", "CreatorPro"];
 const BAN_STATUS_OPTIONS = ["any", "none", "platform", "social"] as const;
+const PAGE_SIZE = 100;
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -32,6 +33,41 @@ function parseRoleList(value: string) {
     .split(/[,\s]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function copyToClipboard(text: string, successMsg: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(successMsg);
+  } catch (err) {
+    toast.error("复制失败：" + getErrorMessage(err));
+  }
+}
+
+function CopyButton({
+  value,
+  label = "复制",
+  size = "1",
+}: {
+  value: string;
+  label?: string;
+  size?: "1" | "2";
+}) {
+  return (
+    <Tooltip content={label}>
+      <IconButton
+        size={size}
+        variant="soft"
+        color="gray"
+        onClick={(event) => {
+          event.stopPropagation();
+          void copyToClipboard(value, "已复制");
+        }}
+      >
+        <CopyIcon size={14} />
+      </IconButton>
+    </Tooltip>
+  );
 }
 
 function BanPill({ ban }: { ban: ActiveBan }) {
@@ -57,17 +93,24 @@ export default function AdminAccountsPage() {
   const [banStatus, setBanStatus] =
     useState<(typeof BAN_STATUS_OPTIONS)[number]>("any");
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [orders, setOrders] = useState<VipOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const isAdmin = accountState.astrobox?.roles?.includes("admin") ?? false;
 
-  const loadUsers = async () => {
-    setLoading(true);
+  const loadUsers = async (cursor?: string | null, append = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError("");
     try {
       const res = await AdminApi.users.list({
@@ -75,16 +118,17 @@ export default function AdminAccountsPage() {
         role,
         vip,
         banStatus,
-        limit: 100,
+        limit: PAGE_SIZE,
+        cursor: cursor || undefined,
       });
-      setUsers(res.items);
-      if (!selectedUserId && res.items[0]) {
-        setSelectedUserId(res.items[0].userId);
-      }
+      setUsers((current) => (append ? [...current, ...res.items] : res.items));
+      setNextCursor(res.nextCursor);
+      setHasMore(res.hasMore);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -112,115 +156,154 @@ export default function AdminAccountsPage() {
   }, []);
 
   useEffect(() => {
-    void loadDetail(selectedUserId);
-  }, [selectedUserId]);
+    if (openUserId) {
+      void loadDetail(openUserId);
+    } else {
+      setDetail(null);
+      setOrders([]);
+    }
+  }, [openUserId]);
 
-  const selectedSummary = useMemo(
-    () => users.find((item) => item.userId === selectedUserId),
-    [selectedUserId, users],
+  const openSummary = useMemo(
+    () => users.find((item) => item.userId === openUserId) || null,
+    [openUserId, users],
   );
 
   return (
     <AdminPage
       title="账号管理"
-      description="搜索用户、处理封禁、调整会员档位、查看订单和维护角色。"
+      description="搜索用户、处理封禁、调整会员档位、查看订单和维护角色。点击用户卡片在弹窗中操作。"
       loading={loading && users.length === 0}
       error={error}
-      onRetry={loadUsers}
+      onRetry={() => loadUsers()}
     >
-      <div className="grid gap-4 2xl:grid-cols-[minmax(420px,0.9fr)_minmax(520px,1.1fr)]">
-        <Panel title="用户列表">
-          <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2">
-            <input
-              className={inputClass}
-              placeholder="搜索 userId / 名称 / 邮箱"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <input
-              className={inputClass}
-              placeholder="角色"
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-            />
-            <select
-              className={inputClass}
-              value={vip}
-              onChange={(event) => setVip(event.target.value)}
-            >
-              <option value="">全部会员</option>
-              {VIP_TIERS.map((tier) => (
-                <option key={tier} value={tier}>
-                  {tier}
-                </option>
-              ))}
-            </select>
-            <select
-              className={inputClass}
-              value={banStatus}
-              onChange={(event) => setBanStatus(event.target.value as typeof banStatus)}
-            >
-              {BAN_STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <Button className="w-full" onClick={loadUsers}>查询</Button>
-          </div>
-
-          <div className="overflow-hidden rounded-xl border border-white/10">
-            {users.map((user) => (
-              <button
-                key={user.userId}
-                type="button"
-                className={`flex w-full items-center gap-3 border-b border-white/10 px-3 py-3 text-left transition last:border-b-0 ${
-                  selectedUserId === user.userId
-                    ? "bg-white/10"
-                    : "bg-black/10 hover:bg-white/5"
-                }`}
-                onClick={() => setSelectedUserId(user.userId)}
-              >
-                <img
-                  src={user.avatar}
-                  className="h-10 w-10 rounded-full object-cover"
-                  alt=""
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-white">
-                      {user.displayName || user.username || user.userId}
-                    </span>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">
-                      {user.vip}
-                    </span>
-                  </div>
-                  <p className="truncate font-mono-sarasa text-xs text-white/50">
-                    {user.userId}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                  {user.activeBans.map((ban) => (
-                    <BanPill key={ban.id} ban={ban} />
-                  ))}
-                </div>
-              </button>
+      <Panel
+        title={`用户列表${users.length ? ` (${users.length}${hasMore ? "+" : ""})` : ""}`}
+      >
+        <div className="mb-3 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2">
+          <input
+            className={inputClass}
+            placeholder="搜索 userId / 名称 / 邮箱"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void loadUsers();
+            }}
+          />
+          <input
+            className={inputClass}
+            placeholder="角色"
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+          />
+          <select
+            className={inputClass}
+            value={vip}
+            onChange={(event) => setVip(event.target.value)}
+          >
+            <option value="">全部会员</option>
+            {VIP_TIERS.map((tier) => (
+              <option key={tier} value={tier}>
+                {tier}
+              </option>
             ))}
-            {users.length === 0 && (
-              <div className="px-4 py-10 text-center text-sm text-white/50">
-                没有匹配用户
-              </div>
-            )}
-          </div>
-        </Panel>
+          </select>
+          <select
+            className={inputClass}
+            value={banStatus}
+            onChange={(event) => setBanStatus(event.target.value as typeof banStatus)}
+          >
+            {BAN_STATUS_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <Button onClick={() => loadUsers()} disabled={loading}>查询</Button>
+        </div>
 
-        <Panel title={selectedSummary?.displayName || selectedUserId || "用户详情"}>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {users.map((user) => (
+            <button
+              key={user.userId}
+              type="button"
+              onClick={() => setOpenUserId(user.userId)}
+              className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-black/15 px-3 py-3 text-left transition hover:border-white/25 hover:bg-white/[0.04]"
+            >
+              <img
+                src={user.avatar}
+                className="h-10 w-10 rounded-full object-cover"
+                alt=""
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-white">
+                    {user.displayName || user.username || user.userId}
+                  </span>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">
+                    {user.vip}
+                  </span>
+                </div>
+                <p className="truncate font-mono-sarasa text-xs text-white/50">
+                  {user.userId}
+                </p>
+                {user.github && (
+                  <p className="flex items-center gap-1 truncate text-[11px] text-white/45">
+                    <GithubLogoIcon size={11} />
+                    {user.github}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {user.activeBans.map((ban) => (
+                  <BanPill key={ban.id} ban={ban} />
+                ))}
+                <CopyButton value={user.userId} label="复制 userId" />
+              </div>
+            </button>
+          ))}
+          {users.length === 0 && (
+            <div className="col-span-full px-4 py-10 text-center text-sm text-white/50">
+              没有匹配用户
+            </div>
+          )}
+        </div>
+
+        {hasMore && (
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="soft"
+              onClick={() => loadUsers(nextCursor, true)}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "加载中..." : "加载更多"}
+            </Button>
+          </div>
+        )}
+      </Panel>
+
+      <Dialog.Root
+        open={openUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpenUserId(null);
+        }}
+      >
+        <Dialog.Content maxWidth="860px">
+          <Dialog.Title>
+            {openSummary?.displayName ||
+              openSummary?.username ||
+              openSummary?.userId ||
+              "用户详情"}
+          </Dialog.Title>
           {detailLoading && (
-            <div className="py-20 text-center text-sm text-white/60">加载中...</div>
+            <div className="grid place-items-center py-20">
+              <Spinner />
+            </div>
           )}
           {!detailLoading && detail && (
             <div className="flex flex-col gap-4">
               <UserBasics detail={detail} />
+              <BoundPlatforms detail={detail} />
               <BanManager detail={detail} onChanged={() => loadDetail(detail.userId)} />
               <VipManager
                 detail={detail}
@@ -234,28 +317,41 @@ export default function AdminAccountsPage() {
               />
             </div>
           )}
-          {!detailLoading && !detail && (
-            <div className="py-20 text-center text-sm text-white/60">
-              选择一个用户查看详情
+          {!detailLoading && !detail && openUserId && (
+            <div className="py-12 text-center text-sm text-white/55">
+              无法加载用户详情。
             </div>
           )}
-        </Panel>
-      </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Dialog.Close>
+              <Button variant="soft">关闭</Button>
+            </Dialog.Close>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
     </AdminPage>
+  );
+}
+
+function CopyableRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="text-white/40">{label}</span>
+      <div className="mt-0.5 flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate font-mono-sarasa text-white">
+          {value || "--"}
+        </p>
+        {value && <CopyButton value={value} label={`复制 ${label}`} />}
+      </div>
+    </div>
   );
 }
 
 function UserBasics({ detail }: { detail: AdminUserDetail }) {
   return (
     <div className="grid gap-3 rounded-xl bg-black/20 p-3 text-sm text-white/70 md:grid-cols-2">
-      <div>
-        <span className="text-white/40">User ID</span>
-        <p className="font-mono-sarasa text-white">{detail.userId}</p>
-      </div>
-      <div>
-        <span className="text-white/40">Email</span>
-        <p className="truncate text-white">{detail.email || "--"}</p>
-      </div>
+      <CopyableRow label="User ID" value={detail.userId} />
+      <CopyableRow label="Email" value={detail.email || ""} />
       <div>
         <span className="text-white/40">Roles</span>
         <p className="text-white">{detail.roles.join(", ") || "--"}</p>
@@ -264,6 +360,55 @@ function UserBasics({ detail }: { detail: AdminUserDetail }) {
         <span className="text-white/40">Created</span>
         <p className="text-white">{formatDateTime(detail.createdAt)}</p>
       </div>
+    </div>
+  );
+}
+
+function BoundPlatforms({ detail }: { detail: AdminUserDetail }) {
+  const additional = detail.additionalProperties ?? {};
+  const entries = Object.entries(additional);
+  const hasGithub = Boolean(detail.github);
+  const hasAny = hasGithub || entries.length > 0;
+
+  return (
+    <div className="rounded-xl bg-black/20 p-3">
+      <h3 className="mb-3 text-sm font-semibold text-white">已绑定平台</h3>
+      {!hasAny ? (
+        <p className="text-sm text-white/45">没有绑定的第三方平台。</p>
+      ) : (
+        <div className="grid gap-2 md:grid-cols-2">
+          {hasGithub && (
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
+              <GithubLogoIcon size={18} className="text-white/65" />
+              <div className="min-w-0 flex-1">
+                <span className="text-xs text-white/40">GitHub</span>
+                <p className="truncate font-mono-sarasa text-white">{detail.github}</p>
+              </div>
+              <CopyButton value={detail.github!} label="复制" />
+            </div>
+          )}
+          {entries.map(([key, value]) => {
+            const displayValue =
+              typeof value === "string"
+                ? value
+                : value == null
+                  ? "--"
+                  : JSON.stringify(value);
+            return (
+              <div
+                key={key}
+                className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs text-white/40">{key}</span>
+                  <p className="truncate font-mono-sarasa text-white">{displayValue}</p>
+                </div>
+                <CopyButton value={displayValue} label="复制" />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

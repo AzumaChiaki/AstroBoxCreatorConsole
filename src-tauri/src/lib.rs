@@ -83,6 +83,61 @@ async fn encrypt_aes_256_ecb(data_base64: String, key_base64: String) -> Result<
     Ok(general_purpose::STANDARD.encode(encrypted))
 }
 
+#[derive(Debug, Deserialize)]
+struct FetchMediaRequest {
+    url: String,
+    #[serde(default)]
+    headers: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct FetchMediaResponse {
+    status: u16,
+    content_type: Option<String>,
+    body_base64: String,
+}
+
+// Fetch arbitrary remote bytes (e.g. raw.githubusercontent.com media) and
+// return them base64-encoded so the frontend can build a blob: URL without
+// hitting CORS. Restricted to https only.
+#[tauri::command]
+async fn fetch_media(request: FetchMediaRequest) -> Result<FetchMediaResponse, String> {
+    if !request.url.starts_with("https://") {
+        return Err("Only https URLs are allowed".into());
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("AstroBoxCreatorConsole")
+        .build()
+        .map_err(|err| err.to_string())?;
+
+    let mut builder = client.get(&request.url);
+    if let Some(headers) = request.headers {
+        for (key, value) in headers {
+            builder = builder.header(&key, value);
+        }
+    }
+
+    let response = builder.send().await.map_err(|err| err.to_string())?;
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_string());
+    let bytes = response.bytes().await.map_err(|err| err.to_string())?;
+
+    if !status.is_success() {
+        return Err(format!("media request failed ({status})"));
+    }
+
+    Ok(FetchMediaResponse {
+        status: status.as_u16(),
+        content_type,
+        body_base64: general_purpose::STANDARD.encode(&bytes),
+    })
+}
+
 #[tauri::command]
 async fn write_text_file(path: String, content: String) -> Result<(), String> {
     let path_buf = PathBuf::from(path);
@@ -112,7 +167,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             github_request,
             encrypt_aes_256_ecb,
-            write_text_file
+            write_text_file,
+            fetch_media
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

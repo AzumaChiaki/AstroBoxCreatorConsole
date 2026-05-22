@@ -24,6 +24,7 @@
     "framer-motion": "^12.23.24",
     "geojson-world-map": "^0.0.2",
     "isbot": "^5.1.31",
+    "monaco-editor": "^0.55.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-progressive-blur": "^1.0.6",

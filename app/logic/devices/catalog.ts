@@ -1,16 +1,15 @@
+import { devicesCatalogUrl } from "~/config/repoEnv";
+
 export interface DeviceOption {
     id: string;
     name: string;
     vendor?: string;
 }
 
-const DEVICES_URL =
-    "https://raw.githubusercontent.com/AstralSightStudios/AstroBox-Repo/refs/heads/main/devices_v2.json";
-
 type DevicesPayload = Record<string, Record<string, { id: string; name: string }>>;
 
-let cachedDeviceOptions: DeviceOption[] | null = null;
-let loadingPromise: Promise<DeviceOption[]> | null = null;
+const cache = new Map<string, DeviceOption[]>();
+const inflight = new Map<string, Promise<DeviceOption[]>>();
 
 function parseDeviceOptions(payload: DevicesPayload): DeviceOption[] {
     const map = new Map<string, DeviceOption>();
@@ -30,15 +29,15 @@ function parseDeviceOptions(payload: DevicesPayload): DeviceOption[] {
 }
 
 export async function loadDeviceOptions() {
-    if (cachedDeviceOptions) {
-        return cachedDeviceOptions;
-    }
-    if (loadingPromise) {
-        return loadingPromise;
-    }
+    const url = devicesCatalogUrl();
+    const cached = cache.get(url);
+    if (cached) return cached;
 
-    loadingPromise = (async () => {
-        const response = await fetch(DEVICES_URL);
+    const pending = inflight.get(url);
+    if (pending) return pending;
+
+    const promise = (async () => {
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`请求失败: ${response.status}`);
         }
@@ -47,14 +46,15 @@ export async function loadDeviceOptions() {
         if (options.length === 0) {
             throw new Error("设备列表为空");
         }
-        cachedDeviceOptions = options;
+        cache.set(url, options);
         return options;
     })();
 
+    inflight.set(url, promise);
     try {
-        return await loadingPromise;
+        return await promise;
     } finally {
-        loadingPromise = null;
+        inflight.delete(url);
     }
 }
 

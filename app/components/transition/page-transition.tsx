@@ -193,7 +193,7 @@ export default function PageTransition() {
               animate="animate"
               exit="exit"
             >
-              <div className="min-h-full">{frozenOutlet}</div>
+              <div className="h-full">{frozenOutlet}</div>
             </motion.div>
           </AnimatePresence>
         </div>
