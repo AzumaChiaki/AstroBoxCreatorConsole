@@ -44,7 +44,13 @@ export default function Nav() {
   const account = getDisplayAccount(accountState);
   const location = useLocation();
   const navigate = useNavigate();
-  const { isCollapsed, isDesktop, toggleNav, collapseNav } = useNavVisibility();
+  const {
+    isCollapsed,
+    isDesktop,
+    toggleNav,
+    collapseNav,
+    collapseNavForNavigation,
+  } = useNavVisibility();
   const originalOverflowRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -72,12 +78,22 @@ export default function Nav() {
   }, [isCollapsed, isDesktop]);
 
   const handleNavigate = (path: string) => {
-    if (location.pathname !== path) {
-      navigate(path);
+    const drawerOpen = !isDesktop && !isCollapsed;
+    const isNewRoute = location.pathname !== path;
+
+    if (isNewRoute) {
+      // While the mobile drawer is open we pushed a synthetic history entry.
+      // Replace it with the destination so the back button doesn't first have
+      // to re-close an already-closed drawer.
+      navigate(path, drawerOpen ? { replace: true } : undefined);
     }
 
     if (!isDesktop) {
-      collapseNav();
+      if (drawerOpen && isNewRoute) {
+        collapseNavForNavigation();
+      } else {
+        collapseNav();
+      }
     }
   };
 
