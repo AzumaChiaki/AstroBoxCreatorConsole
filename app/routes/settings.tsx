@@ -132,7 +132,7 @@ export default function Settings() {
           <div className="mb-3">
             <h2 className="text-[16px] font-semibold text-white">AstroBox 登录方式</h2>
             <p className="text-sm text-white/55">
-              选择桌面客户端登录 AstroBox 账号时打开登录页面的方式。浏览器版本不受此设置影响。
+              选择桌面客户端登录 AstroBox 账号时打开登录页面的方式
             </p>
           </div>
 

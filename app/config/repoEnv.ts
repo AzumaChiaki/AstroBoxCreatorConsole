@@ -13,28 +13,28 @@ export interface RepoEnvDefinition {
 }
 
 export const REPO_ENVS: Record<RepoEnvId, RepoEnvDefinition> = {
-    testenv: {
-        id: "testenv",
-        label: "TestEnv",
-        description: "AstralSightStudios/ABRepo-TestEnv，用于联调和试发布。",
-        owner: "AstralSightStudios",
-        repoName: "ABRepo-TestEnv",
-        defaultBranch: "main",
-        exploreFilePath: "explore_v2.json",
-    },
     official: {
         id: "official",
         label: "AstroBox-Repo",
-        description: "AstralSightStudios/AstroBox-Repo，线上正式资源仓库。",
+        description: "正式环境",
         owner: "AstralSightStudios",
         repoName: "AstroBox-Repo",
+        defaultBranch: "main",
+        exploreFilePath: "explore_v2.json",
+    },
+    testenv: {
+        id: "testenv",
+        label: "TestEnv",
+        description: "测试环境",
+        owner: "AstralSightStudios",
+        repoName: "ABRepo-TestEnv",
         defaultBranch: "main",
         exploreFilePath: "explore_v2.json",
     },
 };
 
 const STORAGE_KEY = "ABCC_REPO_ENV_V1";
-const DEFAULT_ENV: RepoEnvId = "testenv";
+const DEFAULT_ENV: RepoEnvId = "official";
 
 type Subscriber = () => void;
 const subscribers = new Set<Subscriber>();

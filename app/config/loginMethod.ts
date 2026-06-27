@@ -23,13 +23,13 @@ export const LOGIN_METHODS: Record<AstroboxLoginMethod, LoginMethodDefinition> =
         id: "deeplink",
         label: "系统浏览器登录（DeepLink）",
         description:
-            "在系统默认浏览器中完成登录，再通过 astroboxcc:// 链接跳回应用。隔离性更好，推荐使用。",
+            "在系统默认浏览器中完成登录",
     },
     webview: {
         id: "webview",
         label: "内置网页登录",
         description:
-            "在应用内置窗口直接打开登录页面，登录完成后回到应用内 /callback 页面，无需切换到外部浏览器。",
+            "在应用内置窗口直接打开登录页面",
     },
 };
 
