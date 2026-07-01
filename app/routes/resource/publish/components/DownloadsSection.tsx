@@ -206,7 +206,7 @@ export function DownloadsSection({
             </AlertDialog.Root>
           )}
         </div>
-        <Table.Root className="table-fixed w-full min-w-lg">
+        <Table.Root className="w-full min-w-lg">
           <Table.Header>
             <Table.Row>
               <Table.ColumnHeaderCell
@@ -223,11 +223,11 @@ export function DownloadsSection({
                   <PlusIcon size={16} weight="bold" />
                 </button>
               </Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>设备</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>版本号</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell width="180px">设备</Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell width="100px">版本号</Table.ColumnHeaderCell>
               <Table.ColumnHeaderCell>包体</Table.ColumnHeaderCell>
               {isVip && allowEncryption && (
-                <Table.ColumnHeaderCell>加密上传</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell width="80px">加密上传</Table.ColumnHeaderCell>
               )}
             </Table.Row>
           </Table.Header>
@@ -291,7 +291,7 @@ export function DownloadsSection({
                   />
                 </Table.RowHeaderCell>
                 <Table.RowHeaderCell>
-                  <div className="flex flex-wrap items-center gap-2 h-full w-fit">
+                  <div className="flex flex-wrap items-center gap-2 h-full">
                     <input
                       type="file"
                       className="hidden"
@@ -316,10 +316,11 @@ export function DownloadsSection({
                           radius="large"
                           onClick={() => pickDownloadFile(item.uid)}
                           variant="ghost"
+                          size="1"
                         >
-                          <UploadSimpleIcon size={16} weight="bold" />
+                          <UploadSimpleIcon size={14} weight="bold" />
                         </Button>
-                        <span className=" text-white/80">{item.file.name}</span>
+                        <span className="text-white/80 text-sm truncate max-w-[120px]">{item.file.name}</span>
                       </>
                     ) : item.existingFileName ? (
                       <>
@@ -327,30 +328,31 @@ export function DownloadsSection({
                           radius="large"
                           onClick={() => pickDownloadFile(item.uid)}
                           variant="outline"
+                          size="1"
                         >
-                          <UploadSimpleIcon size={16} weight="bold" />
+                          <UploadSimpleIcon size={14} weight="bold" />
                         </Button>
-                        <span className=" text-emerald-100">
+                        <span className="text-emerald-100 text-sm truncate max-w-[120px]">
                           当前: {item.existingFileName}
                         </span>
                       </>
                     ) : (
-                      <>
-                        <Button
-                          radius="large"
-                          onClick={() => pickDownloadFile(item.uid)}
-                          className="-mx-1"
-                        >
-                          <UploadSimpleIcon size={16} weight="bold" />
-                          请上传文件
-                        </Button>
-                      </>
+                      <Button
+                        radius="large"
+                        onClick={() => pickDownloadFile(item.uid)}
+                        size="1"
+                        variant="soft"
+                      >
+                        <UploadSimpleIcon size={14} weight="bold" />
+                        <span className="hidden sm:inline">请上传文件</span>
+                        <span className="sm:hidden">上传</span>
+                      </Button>
                     )}
                   </div>
                 </Table.RowHeaderCell>
                 {isVip && allowEncryption && (
                   <Table.RowHeaderCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-1">
                       <Switch
                         checked={Boolean(item.encryptOnUpload)}
                         disabled={Boolean(item.existingFileName)}
@@ -360,6 +362,7 @@ export function DownloadsSection({
                             encryptOnUpload: checked,
                           }))
                         }
+                        size="1"
                       />
                       {item.encryptOnUpload && (
                         <EncryptConfigDialog
