@@ -20,6 +20,11 @@ export type PublicOrderStatus =
   | "ignored_unmapped_sku";
 export type EntitlementSourceType = "order" | "cdk";
 export type CdkStatus = "available" | "redeemed";
+export type AccountDeletionTicketStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
 
 export interface ActiveBan {
   id: string;
@@ -88,6 +93,32 @@ export interface ReportItem {
   resolution: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AccountDeletionBlocker {
+  key: string;
+  category: "resource" | "third_party";
+  label: string;
+  count: number;
+}
+
+export interface AccountDeletionTicket {
+  id: string;
+  userId: string;
+  status: AccountDeletionTicketStatus;
+  reason: string;
+  accountSnapshot: {
+    username?: string;
+    displayName?: string;
+    email?: string;
+  };
+  blockersSnapshot: AccountDeletionBlocker[];
+  requestedAt: string | null;
+  handledBy: string;
+  handledAt: string | null;
+  resolution: string;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface InboxMessage {
@@ -464,6 +495,37 @@ export const AdminApi = {
       sendApiRequest<AdminResourceCommerceConfigs>(
         `/admin/orders/resource-configs${buildQuery(query)}`,
         "GET",
+      ),
+  },
+  accountDeletion: {
+    list: (query: {
+      status?: AccountDeletionTicketStatus;
+      userId?: string;
+      limit?: number;
+      cursor?: string;
+    }) =>
+      sendApiRequest<ListResponse<AccountDeletionTicket>>(
+        `/admin/account-deletion${buildQuery(query)}`,
+        "GET",
+      ),
+    detail: (id: string) =>
+      sendApiRequest<AccountDeletionTicket>(
+        `/admin/account-deletion/${encodeURIComponent(id)}`,
+        "GET",
+      ),
+    resolve: (
+      id: string,
+      body: {
+        status: Exclude<AccountDeletionTicketStatus, "pending">;
+        resolution?: string;
+        notifyUser?: boolean;
+      },
+    ) =>
+      sendApiRequest<AccountDeletionTicket>(
+        `/admin/account-deletion/${encodeURIComponent(id)}/resolve`,
+        "POST",
+        undefined,
+        body,
       ),
   },
   inbox: {

@@ -143,6 +143,13 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
         requireRoles: ["admin", "moderator"],
       },
       {
+        id: "admin-account-deletion",
+        icon: IdentificationBadgeIcon,
+        label: "注销工单",
+        path: "/admin/account-deletion",
+        requireRoles: ["admin", "moderator"],
+      },
+      {
         id: "admin-hotupdate",
         icon: RocketLaunchIcon,
         label: "热更新管理",
